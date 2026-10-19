@@ -9,6 +9,7 @@ export default function Home() {
 
   const handleEncryptAndSave = async () => {
     setLoading(true);
+    setLink('');
     const randomKey = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
     const encryptedText = CryptoJS.AES.encrypt(secret, randomKey).toString();
 
@@ -19,6 +20,11 @@ export default function Home() {
     });
     
     const data = await response.json();
+    if (!response.ok || !data.id) {
+      alert(`Could not save the secret: ${data.error || 'unknown error'}`);
+      setLoading(false);
+      return;
+    }
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
     setLink(`${baseUrl}/secret/${data.id}#${randomKey}`);
     setLoading(false);

@@ -18,20 +18,26 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 
-  // 1. Fetch the secret
-  const { data, error: fetchError } = await supabase
-    .from('secrets')
-    .select('encrypted_text')
-    .eq('id', id)
-    .single();
+  if (!id) {
+    return NextResponse.json({ error: 'Missing secret id.' }, { status: 400 });
+  }
 
-  if (fetchError || !data) {
+  // Fetch and burn in one step, so two requests can't both read it
+  const { data, error } = await supabase
+    .from('secrets')
+    .delete()
+    .eq('id', id)
+    .select('encrypted_text')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to read secret:', error.message);
+    return NextResponse.json({ error: 'Could not read the secret. Please try again.' }, { status: 500 });
+  }
+
+  if (!data) {
     return NextResponse.json({ error: 'Secret not found or already burned.' }, { status: 404 });
   }
 
-  // 2. BURN IT (Delete immediately)
-  await supabase.from('secrets').delete().eq('id', id);
-
-  // 3. Return encrypted text
   return NextResponse.json({ encryptedText: data.encrypted_text });
 }
